@@ -1,17 +1,17 @@
 ### Java中线程的状态分为5种。
 ![](https://github.com/ordinary-zhang/hadoop/blob/master/%E5%9B%BE%E7%89%87/thread.jpg)
-1. **初始(NEW)：**新创建了一个线程对象，但还没有调用start()方法。
-2. 就绪状态（Runnable）：线程对象创建后，其他线程调用了该对象的start()方法。该状态的线程位于可运行线程池中，变得可运行，等待获取CPU的使用权。
-3. 运行状态（Running）：就绪状态的线程获取了CPU，执行程序代码。
-4. 阻塞状态（Blocked）：阻塞状态是线程因为某种原因放弃CPU使用权，暂时停止运行。直到线程进入就绪状态，才有机会转到运行状态。阻塞的情况分三种：
+1. **初始(NEW)：** 新创建了一个线程对象，但还没有调用start()方法。
+2. **就绪状态（Runnable）：** 线程对象创建后，其他线程调用了该对象的start()方法。该状态的线程位于可运行线程池中，变得可运行，等待获取CPU的使用权。
+3. **运行状态（Running）：** 就绪状态的线程获取了CPU，执行程序代码。
+4. **阻塞状态（Blocked）：** 阻塞状态是线程因为某种原因放弃CPU使用权，暂时停止运行。直到线程进入就绪状态，才有机会转到运行状态。阻塞的情况分三种：
 （一）、等待阻塞：运行的线程执行wait()方法，JVM会把该线程放入等待池中。(wait会释放持有的锁)</br>
 （二）、同步阻塞：运行的线程在获取对象的同步锁时，若该同步锁被别的线程占用，则JVM会把该线程放入锁池中。</br>
 （三）、其他阻塞：运行的线程执行sleep()或join()方法，或者发出了I/O请求时，JVM会把该线程置为阻塞状态。当sleep()状态超时、join()等待线程终止或者超时、或者I/O处理完毕时，线程重新转入就绪状态。（注意,sleep是不会释放持有的锁）)</br>
-5. 死亡状态（Dead）：线程执行完了或者因异常退出了run()方法，该线程结束生命周期。
+5. **死亡状态（Dead）：** 线程执行完了或者因异常退出了run()方法，该线程结束生命周期。
 
 ### 几种状态转换
 **1. 初始状态**</br>
-实现Runnable接口和继承Thread可以得到一个线程类，new一个实例出来，线程就进入了初始状态。
+实现Runnable接口和继承Thread可以得到一个线程类，new一个实例出来，线程就进入了初始状态。</br>
 **2. 就绪状态**</br>
 就绪状态只是说你资格运行，调度程序没有挑选到你，你就永远是就绪状态。</br>
 调用线程的start()方法，此线程进入就绪状态。</br>
@@ -20,7 +20,7 @@
 **线程让步：Thread.yield() 方法**，暂停当前正在执行的线程对象，把执行机会让给相同或者更高优先级的线程。</br>
 锁池里的线程拿到对象锁后，进入就绪状态。</br>
 **3. 运行中状态**</br>
-线程调度程序从可运行池中选择一个线程作为当前线程时线程所处的状态。这也是线程进入运行状态的唯一一种方式。
+线程调度程序从可运行池中选择一个线程作为当前线程时线程所处的状态。这也是线程进入运行状态的唯一一种方式。</br>
 **4. 阻塞状态**</br>
 **线程睡眠：Thread.sleep(long millis)方法**，使线程转到阻塞状态。millis参数设定睡眠的时间，以毫秒为单位。当睡眠结束后，就转为就绪（Runnable）状态。sleep()平台移植性好。</br>
  
@@ -63,6 +63,63 @@ sleep 方法使当前运行中的线程睡眼一段时间，进入不可运行�
 Obj.wait()，与Obj.notify()必须要与synchronized(Obj)一起使用，也就是wait,与notify是针对已经获取了Obj锁进行操作，从语法角度来说就是Obj.wait(),Obj.notify必须在synchronized(Obj){...}语句块内。从功能上来说wait就是说线程在获取对象锁后，主动释放对象锁，同时本线程休眠。直到有其它线程调用对象的notify()唤醒该线程，才能继续获取对象锁，并继续执行。相应的notify()就是对对象锁的唤醒操作。但有一点需要注意的是notify()调用后，并不是马上就释放对象锁的，而是在相应的synchronized(){}语句块执行结束，自动释放锁后，JVM会在wait()对象锁的线程中随机选取一线程，赋予其对象锁，唤醒线程，继续执行。这样就提供了在线程间同步、唤醒的操作。Thread.sleep()与Object.wait()二者都可以暂停当前线程，释放CPU控制权，主要的区别在于Object.wait()在释放CPU同时，释放了对象锁的控制。
     单单在概念上理解清楚了还不够，需要在实际的例子中进行测试才能更好的理解。对Object.wait()，Object.notify()的应用最经典的例子，应该是三线程打印ABC的问题了吧，这是一道比较经典的面试题，题目要求如下：
     建立三个线程，A线程打印10次A，B线程打印10次B,C线程打印10次C，要求线程同时运行，交替打印10次ABC。这个问题用Object的wait()，notify()就可以很方便的解决。代码如下：
+```
+
+/**
+ * wait用法
+ */
+
+package com.multithread.wait;
+
+public class MyThreadPrinter2 implements Runnable {   
+    private String name;   
+
+    private Object prev;   
+
+    private Object self;   
+
+    private MyThreadPrinter2(String name, Object prev, Object self) {   
+        this.name = name;   
+        this.prev = prev;   
+        this.self = self;   
+
+    }   
+    public void run() {   
+        int count = 10;   
+        while (count > 0) {   
+           synchronized (prev) {   
+                synchronized (self) {   
+                    System.out.print(name);   
+                    count--;  
+                    self.notify();   
+                }   
+                try {   
+                    prev.wait();   
+                } catch (InterruptedException e) {   
+                    e.printStackTrace();   
+                }   
+            }   
+        }   
+    }   
+    public static void main(String[] args) throws Exception {   
+
+        Object a = new Object();   
+        Object b = new Object();   
+        Object c = new Object();   
+        MyThreadPrinter2 pa = new MyThreadPrinter2("A", c, a);   
+        MyThreadPrinter2 pb = new MyThreadPrinter2("B", a, b);   
+        MyThreadPrinter2 pc = new MyThreadPrinter2("C", b, c);   
+        new Thread(pa).start();
+        Thread.sleep(100);  //确保按顺序A、B、C执行
+        new Thread(pb).start();
+        Thread.sleep(100);  
+        new Thread(pc).start();   
+        Thread.sleep(100);  
+        }   
+}  
+输出结果：
+ABCABCABCABCABCABCABCABCABCABC
+```
     
     
 ### wait和sleep区别
