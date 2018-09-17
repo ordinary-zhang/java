@@ -120,7 +120,79 @@ public class MyThreadPrinter2 implements Runnable {
 输出结果：
 ABCABCABCABCABCABCABCABCABCABC
 ```
+### 为什么 wait()、notify()和notifyAll()是 Object类 中的方法
+1）wait()、notify()和notifyAll()方法是本地方法，并且为final方法，无法被重写。
+
+2）调用某个对象的wait()方法能让当前线程阻塞，并且当前线程必须拥有此对象的monitor（即锁）
+
+3）调用某个对象的notify()方法能够唤醒一个正在等待这个对象的monitor的线程，如果有多个线程都在等待这个对象的monitor，则只能唤醒其中一个线程；
+
+4）调用notifyAll()方法能够唤醒所有正在等待这个对象的monitor的线程；
     
+**为什么这些操作线程的方法要定义在object类中呢？**
+简单说：因为synchronized中的这把锁可以是任意对象，所以任意对象都可以调用wait()和notify()；所以wait和notify属于Object。
+
+专业说：因为这些方法在操作同步线程时，都必须要标识它们操作线程的锁，只有同一个锁上的被等待线程，可以被同一个锁上的notify唤醒，不可以对不同锁中的线程进行唤醒。
+
+也就是说，等待和唤醒必须是同一个锁。而锁可以是任意对象，所以可以被任意对象调用的方法是定义在object类中。
+
+在jdk1.5以后，将同步synchronized替换成了Lock，将同步锁对象换成了Condition对象，并且Condition对象可以有多个，这样可以解决一个问题。</br>
+比如说我们在多个生产者和消费者模式中：
+```
+boolean flag = false;
+public synchronized void set(String name){
+　　while(flag){//用while而不用if的原因，这样每个线程在wait等待醒来后都必须再次判断flag
+　　　　try{this.wait();}catch(Exception e){}　　
+　　　　Sytem.out.printLn("生产者");
+　　　　flag = true;
+　　　　this.notifyAll();//这将唤醒所有线程(本方线程和对方线程)，消耗资源
+　　}
+}
+
+public synchronized void out(){
+　　whie(!flag){
+　　　　　try{this.wait();}catch(Exception e){}
+　　　　Sytem.out.printLn("消费者");
+　　　　flag = false;
+　　　　this.notifyAll();//这将唤醒所有线程(本方线程和对方线程)，消耗资源
+　　}
+}
+```
+上面的做法很消耗资源，如果把notifyAll()改成notify()的话，就会造成可能所有线程都在等待。</br>
+所以在jdk1.5以后提供了Lock接口和Condition对象。Condition中的await(), signal().signalAll()代替Object中的wait(),notify(),notifyAll()
+```
+private Lock lock = new ReentrantLock();
+private Condition condition_pro = lock.newCondition();//生产者对象
+private Condition condition_con = lock.newCondition();//消费者对象
+public void set(String name) throws Exception{
+　　lock.lock();//加锁
+　　try{
+　　　　while(flag){
+　　　　　contion_pro.await();
+　　　　　Sytem.out.printLn("生产者");
+　　　　   flag= true;
+　　　　　condition_con.singal();//指定唤醒消费方
+　　　}finally{
+　　　　lock.unlock();//解锁　　　　
+　　　　}　　
+　　}
+}
+public void out() throws Exception{
+　　lock.lock();
+　　try{
+　　　　while(!flag){
+　　　　　　　condition_con.await();　
+　　　　　　　Sytem.out.printLn("消费者");
+　　　　　　　flag = false;
+　　　　　　　condition_pro.signal();//指定唤醒生产方
+　　　　　　}finally{
+　　　　　　lock.unlock();　　
+　　　　　　}
+　　　　}
+}
+```
+这样做的好处，我们可以指定唤醒某一方，减少消耗
+
     
 ### wait和sleep区别
 共同点： </br>
